@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Print Bill #{{ bill.id }}{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 8.5in; margin: 2rem auto;">
+    <div id="printable-area" style="background: white; padding: 2rem; border: 1px solid #ddd; border-radius: 8px;">
+        <!-- Header -->
+        <div style="text-align: center; margin-bottom: 2rem; border-bottom: 3px solid #0d6efd; padding-bottom: 1rem;">
+            <h1 style="color: #0d6efd; margin: 0; font-size: 2rem;">GOVERNMENT HOSPITAL</h1>
+            <p style="margin: 0.5rem 0; color: #666;">Shikaripura</p>
+            <p style="margin: 0; font-size: 0.9rem; color: #999;">Phone: +91-XXXX-XXXX-XX | Email: hospital@example.com</p>
+        </div>
+
+        <!-- Bill Title -->
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <h2 style="color: #333; margin: 0; font-size: 1.5rem;">BILL / INVOICE</h2>
+            <p style="color: #666; margin: 0.5rem 0;">Payment Receipt</p>
+        </div>
+
+        <!-- Bill Details -->
+        <div style="margin-bottom: 2rem;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #eee; width: 30%; font-weight: bold;">Bill No.:</td>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #eee;">{{ bill.id }}</td>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #eee; width: 30%; font-weight: bold;">Date:</td>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #eee;">{{ bill.date.strftime('%d-%m-%Y %H:%M') }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Patient Information -->
+        <div style="margin-bottom: 2rem;">
+            <h4 style="color: #333; margin: 0 0 1rem 0; padding-bottom: 0.5rem; border-bottom: 2px solid #0d6efd;">Patient Information</h4>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #eee; width: 25%; font-weight: bold;">Name:</td>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #eee; width: 25%;">{{ bill.patient.name }}</td>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #eee; width: 25%; font-weight: bold;">Email:</td>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #eee; width: 25%;">{{ bill.patient.email }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #eee; font-weight: bold;">Phone:</td>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #eee;">{{ bill.patient.phone }}</td>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #eee; font-weight: bold;">Address:</td>
+                    <td style="padding: 0.75rem; border-bottom: 1px solid #eee;">{{ bill.patient.address }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Bill Items -->
+        <div style="margin-bottom: 2rem;">
+            <h4 style="color: #333; margin: 0 0 1rem 0; padding-bottom: 0.5rem; border-bottom: 2px solid #0d6efd;">Service Details</h4>
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background-color: #eef3ff;">
+                        <th style="padding: 0.75rem; text-align: left; border: 1px solid #ddd; font-weight: bold;">Description</th>
+                        <th style="padding: 0.75rem; text-align: right; border: 1px solid #ddd; font-weight: bold; width: 20%;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 0.75rem; border: 1px solid #ddd;">{{ bill.description }}</td>
+                        <td style="padding: 0.75rem; border: 1px solid #ddd; text-align: right; font-weight: bold;">₹{{ "%.2f"|format(bill.amount) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Total and Status -->
+        <div style="margin-bottom: 2rem;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 0.75rem; text-align: right; width: 70%; font-weight: bold; font-size: 1.1rem;">Total Amount:</td>
+                    <td style="padding: 0.75rem; text-align: right; font-weight: bold; font-size: 1.2rem; color: #0d6efd; border: 2px solid #0d6efd;">₹{{ "%.2f"|format(bill.amount) }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Payment Status --
+        <div style="margin-bottom: 2rem; padding: 1rem; border-radius: 8px; text-align: center;
+                    {% if bill.status == 'paid' %}
+                        background-color: #d4edda; border: 2px solid #28a745;
+                    {% else %}
+                        background-color: #f8d7da; border: 2px solid #dc3545;
+                    {% endif %}">
+            <h3 style="margin: 0; font-size: 1.25rem;
+                       {% if bill.status == 'paid' %}
+                           color: #155724;
+                       {% else %}
+                           color: #721c24;
+                       {% endif %}">
+                Payment Status: 
+                {% if bill.status == 'paid' %}
+                    <span style="color: #28a745;">✓ PAID</span>
+                {% else %}
+                    <span style="color: #dc3545;">✗ UNPAID</span>
+                {% endif %}
+            </h3>
+            {% if bill.status == 'paid' %}
+                <p style="margin: 0.5rem 0; font-size: 0.9rem;">Payment has been received. Thank you!</p>
+            {% else %}
+                <p style="margin: 0.5rem 0; font-size: 0.9rem;">Payment is pending. Please pay at the earliest.</p>
+            {% endif %}
+        </div>
+
+        <!-- Terms and Notes -->
+        <div style="margin-bottom: 2rem; padding: 1rem; background-color: #f5f8ff; border-radius: 8px;">
+            <h4 style="color: #333; margin: 0 0 0.5rem 0;">Terms & Notes</h4>
+            <ul style="margin: 0; padding-left: 1.5rem; color: #666; font-size: 0.9rem;">
+                <li>This is a computer-generated document and is valid without a signature.</li>
+                <li>Please keep this receipt for your records.</li>
+                <li>For any queries, please contact the hospital administration.</li>
+            </ul>
+        </div>
+
+        <!-- Footer -->
+        <div style="text-align: center; padding-top: 1rem; border-top: 1px solid #ddd; color: #999; font-size: 0.85rem;">
+            <p style="margin: 0;">This document was generated on {{ bill.date.strftime('%d %B %Y at %H:%M:%S') }}</p>
+            <p style="margin: 0;">Government Hospital, Shikaripura</p>
+        </div>
+    </div>
+
+    <!-- Print Buttons -->
+    <div style="text-align: center; margin-top: 2rem; no-print">
+        <button onclick="window.print()" class="btn btn-primary btn-lg">
+            <i class="fas fa-print"></i> Print This Bill
+        </button>
+        <a href="{{ url_for('generate_bill_pdf', id=bill.id) }}" class="btn btn-success btn-lg">
+            <i class="fas fa-download"></i> Download as PDF
+        </a>
+        <a href="{{ url_for('bills') }}" class="btn btn-secondary btn-lg">
+            <i class="fas fa-arrow-left"></i> Back to Bills
+        </a>
+    </div>
+</div>
+
+<style media="print">
+    body {
+        background: white;
+    }
+    .container {
+        max-width: 100%;
+        margin: 0;
+    }
+    .btn-group, [onclick], .no-print {
+        display: none !important;
+    }
+    .navbar, .navbar-brand {
+        display: none !important;
+    }
+    #printable-area {
+        border: none;
+        box-shadow: none;
+        padding: 0;
+    }
+</style>
+
+<style>
+    .no-print {
+        display: block;
+    }
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}

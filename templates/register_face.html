@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Register Face{% endblock %}
+
+{% block content %}
+<h2>Register Face for {{ doctor.name }}</h2>
+<form method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="image_data" id="image_data">
+    <div class="mb-3">
+        <label class="form-label">Use Camera</label>
+        <video id="camera" class="w-100 rounded mb-2" autoplay playsinline></video>
+        <button type="button" class="btn btn-secondary mb-3" id="captureBtn">Capture Photo</button>
+        <div id="previewContainer" class="mb-3 d-none">
+            <p class="mb-1">Preview:</p>
+            <img id="preview" class="img-fluid rounded shadow-sm" alt="Captured face preview">
+        </div>
+        <label for="face_image" class="form-label">Or upload face image</label>
+        <input type="file" class="form-control" id="face_image" name="face_image" accept="image/*">
+    </div>
+    <button type="submit" class="btn btn-primary">Register Face</button>
+</form>
+<canvas id="canvas" class="d-none"></canvas>
+<script>
+const video = document.getElementById('camera');
+const canvas = document.getElementById('canvas');
+const imageDataInput = document.getElementById('image_data');
+const captureBtn = document.getElementById('captureBtn');
+const preview = document.getElementById('preview');
+const previewContainer = document.getElementById('previewContainer');
+
+async function initCamera() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+    } catch (err) {
+        console.warn('Camera not accessible:', err);
+        video.style.display = 'none';
+        captureBtn.style.display = 'none';
+    }
+}
+
+captureBtn.addEventListener('click', () => {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/png');
+    imageDataInput.value = dataUrl;
+    preview.src = dataUrl;
+    previewContainer.classList.remove('d-none');
+});
+
+window.addEventListener('load', initCamera);
+</script>
+{% endblock %}

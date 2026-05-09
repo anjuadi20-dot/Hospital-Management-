@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Add Appointment{% endblock %}
+
+{% block content %}
+<h2>Schedule New Appointment</h2>
+<form method="POST">
+    <div class="mb-3">
+        <label for="patient_id" class="form-label">Patient</label>
+        <select class="form-control" id="patient_id" name="patient_id" required>
+            {% for patient in patients %}
+            <option value="{{ patient.id }}">{{ patient.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label for="doctor_id" class="form-label">Doctor</label>
+        <select class="form-control" id="doctor_id" name="doctor_id" required>
+            {% for doctor in doctors %}
+            <option value="{{ doctor.id }}">{{ doctor.name }} - {{ doctor.specialization }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label for="date" class="form-label">Date and Time</label>
+        <input type="datetime-local" class="form-control" id="date" name="date" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Schedule Appointment</button>
+</form>
+{% endblock %}

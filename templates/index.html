@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Hospital Management System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <h1>Government Hospital, Shikaripura</h1>
+        <p class="lead">A modern healthcare management portal for patient care, doctors, appointments, records, and billing.</p>
+        <div class="mt-4">
+            {% if not current_user.is_authenticated %}
+                <a class="btn btn-light btn-lg me-2" href="{{ url_for('register') }}">Register</a>
+                <a class="btn btn-outline-light btn-lg me-2" href="{{ url_for('login') }}">Login</a>
+                <a class="btn btn-outline-light btn-lg" href="{{ url_for('dashboard') }}">Explore Features</a>
+            {% else %}
+                <a class="btn btn-light btn-lg" href="{{ url_for('dashboard') }}">Go to Dashboard</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<div class="row text-center">
+    <div class="col-md-4 mb-4">
+        <div class="card p-4 h-100">
+            <h5>Patient Records</h5>
+            <p class="text-muted">Securely manage patient histories and demographics.</p>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card p-4 h-100">
+            <h5>Doctor Management</h5>
+            <p class="text-muted">Maintain doctor profiles and appointment availability.</p>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card p-4 h-100">
+            <h5>Billing & Reports</h5>
+            <p class="text-muted">Track bills and payments with INR currency support.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Add Medical Record{% endblock %}
+
+{% block content %}
+<h2>Add New Medical Record</h2>
+<form method="POST">
+    <div class="mb-3">
+        <label for="patient_id" class="form-label">Patient</label>
+        <select class="form-control" id="patient_id" name="patient_id" required>
+            {% for patient in patients %}
+            <option value="{{ patient.id }}">{{ patient.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label for="doctor_id" class="form-label">Doctor</label>
+        <select class="form-control" id="doctor_id" name="doctor_id" required>
+            {% for doctor in doctors %}
+            <option value="{{ doctor.id }}">{{ doctor.name }} - {{ doctor.specialization }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label for="diagnosis" class="form-label">Diagnosis</label>
+        <textarea class="form-control" id="diagnosis" name="diagnosis" required></textarea>
+    </div>
+    <div class="mb-3">
+        <label for="treatment" class="form-label">Treatment</label>
+        <textarea class="form-control" id="treatment" name="treatment" required></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Add Record</button>
+</form>
+{% endblock %}

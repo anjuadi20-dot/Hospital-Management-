@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Add Patient{% endblock %}
+
+{% block content %}
+<h2>Add New Patient</h2>
+<form method="POST">
+    <div class="mb-3">
+        <label for="name" class="form-label">Name</label>
+        <input type="text" class="form-control" id="name" name="name" required>
+    </div>
+    <div class="mb-3">
+        <label for="age" class="form-label">Age</label>
+        <input type="number" class="form-control" id="age" name="age" required>
+    </div>
+    <div class="mb-3">
+        <label for="gender" class="form-label">Gender</label>
+        <select class="form-control" id="gender" name="gender" required>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+        </select>
+    </div>
+    <div class="mb-3">
+        <label for="phone" class="form-label">Phone</label>
+        <input type="text" class="form-control" id="phone" name="phone" required>
+    </div>
+    <div class="mb-3">
+        <label for="email" class="form-label">Email</label>
+        <input type="email" class="form-control" id="email" name="email" required>
+    </div>
+    <div class="mb-3">
+        <label for="address" class="form-label">Address</label>
+        <textarea class="form-control" id="address" name="address" required></textarea>
+    </div>
+    <div class="mb-3">
+        <label for="medical_history" class="form-label">Medical History</label>
+        <textarea class="form-control" id="medical_history" name="medical_history"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Add Patient</button>
+</form>
+{% endblock %}
