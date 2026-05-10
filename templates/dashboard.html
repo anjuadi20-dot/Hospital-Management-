@@ -4,7 +4,8 @@
 
 {% block content %}
 <div class="page-header">
-    <div class="container">
+    <div class="container text-center">
+        <img src="{{ url_for('static', filename='govt-seal.png') }}" alt="Government of Karnataka" style="height: 120px; margin-bottom: 1.5rem;">
         <h1>Dashboard</h1>
         {% if current_user.is_authenticated and current_user.role == 'patient' %}
             <p class="lead">Welcome back, {{ patient.name if patient else 'Patient' }}</p>
@@ -44,8 +45,8 @@
                                     <h6 class="mb-1">Dr. {{ appointment.doctor.name }}</h6>
                                     <small class="text-muted">{{ appointment.date.strftime('%d-%m-%Y %H:%M') }}</small>
                                     <div class="mt-2">
-                                        <span class="badge bg-{% if appointment.status == 'scheduled' %}info{% elif appointment.status == 'completed' %}success{% else %}danger{% endif %}">
-                                            {{ appointment.status.upper() }}
+                                        <span class="badge bg-{% if appointment.status == 'pending' %}warning{% elif appointment.status == 'accepted' %}success{% elif appointment.status == 'rejected' %}danger{% elif appointment.status == 'completed' %}info{% else %}secondary{% endif %}">
+                                            {{ appointment.status.title() }}
                                         </span>
                                     </div>
                                 </div>

@@ -4,16 +4,17 @@
 
 {% block content %}
 <div class="page-header">
-    <div class="container">
+    <div class="container text-center">
+        <img src="{{ url_for('static', filename='govt-seal.png') }}" alt="Government of Karnataka" style="height: 200px; margin-bottom: 2rem; display: block; margin-left: auto; margin-right: auto;">
         <h1>Government Hospital, Shikaripura</h1>
         <p class="lead">A modern healthcare management portal for patient care, doctors, appointments, records, and billing.</p>
         <div class="mt-4">
             {% if not current_user.is_authenticated %}
-                <a class="btn btn-light btn-lg me-2" href="{{ url_for('register') }}">Register</a>
-                <a class="btn btn-outline-light btn-lg me-2" href="{{ url_for('login') }}">Login</a>
-                <a class="btn btn-outline-light btn-lg" href="{{ url_for('dashboard') }}">Explore Features</a>
+                <a class="btn btn-lg me-2" href="{{ url_for('register') }}" style="background-color: white; color: #0d6efd; border: 2px solid white; font-weight: 600;">Register</a>
+                <a class="btn btn-lg me-2" href="{{ url_for('login') }}" style="background-color: white; color: #0d6efd; border: 2px solid white; font-weight: 600;">Login</a>
+                <a class="btn btn-lg" href="{{ url_for('dashboard') }}" style="background-color: white; color: #0d6efd; border: 2px solid white; font-weight: 600;">Explore Features</a>
             {% else %}
-                <a class="btn btn-light btn-lg" href="{{ url_for('dashboard') }}">Go to Dashboard</a>
+                <a class="btn btn-lg" href="{{ url_for('dashboard') }}" style="background-color: white; color: #0d6efd; border: 2px solid white; font-weight: 600;">Go to Dashboard</a>
             {% endif %}
         </div>
     </div>

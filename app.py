@@ -30,6 +30,11 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///hospital.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
+
+# File size limits for doctor photo registration
+MIN_DOCTOR_PHOTO_SIZE = 1024  # 1KB in bytes
+MAX_DOCTOR_PHOTO_SIZE = 100 * 1024 * 1024  # 100MB in bytes
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -66,7 +71,8 @@ class Appointment(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
     doctor_id = db.Column(db.Integer, db.ForeignKey('doctor.id'), nullable=False)
     date = db.Column(db.DateTime, nullable=False)
-    status = db.Column(db.String(50), default='scheduled')  # scheduled, completed, cancelled
+    status = db.Column(db.String(50), default='pending')  # pending, accepted, rejected, completed, cancelled
+    doctor_approval = db.Column(db.String(20), default='pending')  # pending, accepted, rejected
     notes = db.Column(db.Text)
     patient = db.relationship('Patient', backref='appointments')
     doctor = db.relationship('Doctor', backref='appointments')
@@ -89,6 +95,18 @@ class Bill(db.Model):
     date = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(50), default='unpaid')  # unpaid, paid
     patient = db.relationship('Patient', backref='bills')
+
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    appointment_id = db.Column(db.Integer, db.ForeignKey('appointment.id'), nullable=True)
+    message = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    is_read = db.Column(db.Boolean, default=False)
+    sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
+    receiver = db.relationship('User', foreign_keys=[receiver_id], backref='received_messages')
+    appointment = db.relationship('Appointment', backref='messages')
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -135,6 +153,23 @@ def register():
         new_user = User(username=username, password=hashed_password, role=role)
         db.session.add(new_user)
         db.session.commit()
+        
+        # If registering as doctor, create a doctor profile
+        if role == 'doctor':
+            # Check if doctor already exists
+            existing_doctor = Doctor.query.filter_by(email=username).first()
+            if not existing_doctor:
+                # Create basic doctor profile - admin can update details later
+                doctor = Doctor(
+                    name=username.split('@')[0].replace('.', ' ').title(),  # Basic name from email
+                    specialization='General Medicine',  # Default specialization
+                    phone='Not provided',
+                    email=username,
+                    availability='Please update availability'
+                )
+                db.session.add(doctor)
+                db.session.commit()
+        
         flash('Registration successful! Please login.')
         return redirect(url_for('login'))
     return render_template('register.html')
@@ -160,8 +195,152 @@ def dashboard():
                                  bills=bills, 
                                  doctors=doctors,
                                  patient=patient)
-    # Admin or doctor dashboard
+    elif current_user.role == 'doctor':
+        # Redirect doctors to their specific dashboard
+        return redirect(url_for('doctor_dashboard'))
+    
+    # Admin dashboard
     return render_template('dashboard.html')
+
+@app.route('/doctor_dashboard')
+@login_required
+def doctor_dashboard():
+    if current_user.role != 'doctor':
+        flash('Access denied. Doctor privileges required.')
+        return redirect(url_for('dashboard'))
+    
+    # Get doctor info
+    doctor = Doctor.query.filter_by(email=current_user.username).first()
+    if not doctor:
+        flash('Doctor profile not found.')
+        return redirect(url_for('dashboard'))
+    
+    # Get doctor's appointments
+    appointments = Appointment.query.filter_by(doctor_id=doctor.id).order_by(Appointment.date.desc()).all()
+    
+    # Get doctor's patients (through appointments)
+    patient_ids = set(appointment.patient_id for appointment in appointments)
+    patients = Patient.query.filter(Patient.id.in_(patient_ids)).all()
+    
+    # Get medical records for this doctor
+    medical_records = MedicalRecord.query.filter_by(doctor_id=doctor.id).order_by(MedicalRecord.date.desc()).all()
+    
+    # Get unread messages for this doctor
+    unread_messages = Message.query.filter_by(receiver_id=current_user.id, is_read=False).count()
+    
+    return render_template('doctor_dashboard.html',
+                         doctor=doctor,
+                         appointments=appointments,
+                         patients=patients,
+                         medical_records=medical_records,
+                         unread_messages=unread_messages)
+
+@app.route('/send_message', methods=['POST'])
+@login_required
+def send_message():
+    if request.method == 'POST':
+        receiver_id = request.form.get('receiver_id')
+        appointment_id = request.form.get('appointment_id')
+        message_text = request.form.get('message')
+        
+        if not message_text or not message_text.strip():
+            flash('Message cannot be empty')
+            return redirect(request.referrer or url_for('doctor_dashboard'))
+        
+        message = Message(
+            sender_id=current_user.id,
+            receiver_id=int(receiver_id),
+            appointment_id=int(appointment_id) if appointment_id else None,
+            message=message_text.strip()
+        )
+        db.session.add(message)
+        db.session.commit()
+        flash('Message sent successfully')
+        
+    return redirect(request.referrer or url_for('doctor_dashboard'))
+
+@app.route('/chat/<int:appointment_id>')
+@login_required
+def chat(appointment_id):
+    appointment = Appointment.query.get_or_404(appointment_id)
+    
+    # Check if user is authorized to view this chat
+    if current_user.role == 'doctor':
+        doctor = Doctor.query.filter_by(email=current_user.username).first()
+        if not doctor or appointment.doctor_id != doctor.id:
+            flash('Access denied')
+            return redirect(url_for('doctor_dashboard'))
+    elif current_user.role == 'patient':
+        patient = Patient.query.filter_by(email=current_user.username).first()
+        if not patient or appointment.patient_id != patient.id:
+            flash('Access denied')
+            return redirect(url_for('dashboard'))
+    else:
+        flash('Access denied')
+        return redirect(url_for('dashboard'))
+    
+    # Get all messages for this appointment
+    messages = Message.query.filter_by(appointment_id=appointment_id).order_by(Message.timestamp).all()
+    
+    # Mark messages as read for current user
+    for message in messages:
+        if message.receiver_id == current_user.id and not message.is_read:
+            message.is_read = True
+    db.session.commit()
+    
+    return render_template('chat.html', appointment=appointment, messages=messages)
+
+@app.route('/doctor_patients')
+@login_required
+def doctor_patients():
+    if current_user.role != 'doctor':
+        flash('Access denied. Doctor privileges required.')
+        return redirect(url_for('dashboard'))
+    
+    doctor = Doctor.query.filter_by(email=current_user.username).first()
+    if not doctor:
+        flash('Doctor profile not found.')
+        return redirect(url_for('dashboard'))
+    
+    # Get patients through appointments
+    appointments = Appointment.query.filter_by(doctor_id=doctor.id).all()
+    patient_ids = set(appointment.patient_id for appointment in appointments)
+    patients = Patient.query.filter(Patient.id.in_(patient_ids)).all()
+    
+    return render_template('doctor_patients.html', patients=patients, doctor=doctor, appointments=appointments)
+
+@app.route('/add_medical_record/<int:patient_id>', methods=['GET', 'POST'])
+@login_required
+def add_medical_record_for_patient(patient_id):
+    if current_user.role != 'doctor':
+        flash('Access denied. Doctor privileges required.')
+        return redirect(url_for('dashboard'))
+    
+    doctor = Doctor.query.filter_by(email=current_user.username).first()
+    patient = Patient.query.get_or_404(patient_id)
+    
+    # Check if doctor has access to this patient
+    appointment = Appointment.query.filter_by(doctor_id=doctor.id, patient_id=patient_id).first()
+    if not appointment:
+        flash('You do not have access to this patient.')
+        return redirect(url_for('doctor_dashboard'))
+    
+    if request.method == 'POST':
+        diagnosis = request.form.get('diagnosis')
+        treatment = request.form.get('treatment')
+        
+        record = MedicalRecord(
+            patient_id=patient_id,
+            doctor_id=doctor.id,
+            diagnosis=diagnosis,
+            treatment=treatment
+        )
+        db.session.add(record)
+        db.session.commit()
+        flash('Medical record added successfully')
+        return redirect(url_for('doctor_patients'))
+    
+    return render_template('add_medical_record.html', patient=patient, doctor=doctor)
 
 # Patient routes
 @app.route('/patients')
@@ -256,7 +435,23 @@ def register_face(id):
             except Exception:
                 image = None
         elif file:
-            image = Image.open(file.stream)
+            # Validate file size for uploaded image
+            file.seek(0, 2)  # Seek to end of file
+            file_size = file.tell()
+            file.seek(0)  # Reset to beginning
+            
+            if file_size < MIN_DOCTOR_PHOTO_SIZE:
+                flash(f'Image size is too small. Minimum size is 1KB.')
+                return render_template('register_face.html', doctor=doctor)
+            elif file_size > MAX_DOCTOR_PHOTO_SIZE:
+                flash(f'Image size is too large. Maximum size is 100MB.')
+                return render_template('register_face.html', doctor=doctor)
+            
+            try:
+                image = Image.open(file.stream)
+            except Exception:
+                flash('Invalid image file. Please upload a valid image.')
+                return render_template('register_face.html', doctor=doctor)
 
         if image is not None:
             image = np.array(image)
@@ -321,6 +516,34 @@ def face_login():
 def appointments():
     appointments = Appointment.query.all()
     return render_template('appointments.html', appointments=appointments)
+
+@app.route('/appointment/<int:id>/accept', methods=['POST'])
+@login_required
+def accept_appointment(id):
+    appointment = Appointment.query.get_or_404(id)
+    # Check if current user is the assigned doctor
+    if current_user.role == 'doctor' and appointment.doctor_id == current_user.id:
+        appointment.doctor_approval = 'accepted'
+        appointment.status = 'accepted'
+        db.session.commit()
+        flash('Appointment accepted successfully')
+    else:
+        flash('You are not authorized to accept this appointment')
+    return redirect(url_for('appointments'))
+
+@app.route('/appointment/<int:id>/reject', methods=['POST'])
+@login_required
+def reject_appointment(id):
+    appointment = Appointment.query.get_or_404(id)
+    # Check if current user is the assigned doctor
+    if current_user.role == 'doctor' and appointment.doctor_id == current_user.id:
+        appointment.doctor_approval = 'rejected'
+        appointment.status = 'rejected'
+        db.session.commit()
+        flash('Appointment rejected')
+    else:
+        flash('You are not authorized to reject this appointment')
+    return redirect(url_for('appointments'))
 
 @app.route('/add_appointment', methods=['GET', 'POST'])
 @login_required
@@ -471,6 +694,8 @@ def print_bill(id):
     return render_template('print_bill.html', bill=bill)
 
 
+if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+    app.run(debug=True, host='0.0.0.0', port=5000)
     app.run(debug=True)

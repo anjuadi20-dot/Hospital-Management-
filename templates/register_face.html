@@ -4,7 +4,7 @@
 
 {% block content %}
 <h2>Register Face for {{ doctor.name }}</h2>
-<form method="POST" enctype="multipart/form-data">
+<form method="POST" enctype="multipart/form-data" id="faceForm">
     <input type="hidden" name="image_data" id="image_data">
     <div class="mb-3">
         <label class="form-label">Use Camera</label>
@@ -16,6 +16,12 @@
         </div>
         <label for="face_image" class="form-label">Or upload face image</label>
         <input type="file" class="form-control" id="face_image" name="face_image" accept="image/*">
+        <small class="form-text text-muted">
+            <strong>Image Requirements:</strong><br>
+            • Minimum size: 1 KB<br>
+            • Maximum size: 100 MB<br>
+            • Supported formats: JPG, PNG, GIF, WebP, etc.
+        </small>
     </div>
     <button type="submit" class="btn btn-primary">Register Face</button>
 </form>
@@ -27,6 +33,11 @@ const imageDataInput = document.getElementById('image_data');
 const captureBtn = document.getElementById('captureBtn');
 const preview = document.getElementById('preview');
 const previewContainer = document.getElementById('previewContainer');
+const fileInput = document.getElementById('face_image');
+const form = document.getElementById('faceForm');
+
+const MIN_FILE_SIZE = 1024; // 1KB
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
 async function initCamera() {
     try {
@@ -47,6 +58,38 @@ captureBtn.addEventListener('click', () => {
     imageDataInput.value = dataUrl;
     preview.src = dataUrl;
     previewContainer.classList.remove('d-none');
+});
+
+// Client-side file size validation
+fileInput.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const fileSizeInBytes = file.size;
+        
+        if (fileSizeInBytes < MIN_FILE_SIZE) {
+            alert(`Image size is too small. Minimum size is 1 KB.\nYour file size: ${(fileSizeInBytes / 1024).toFixed(2)} KB`);
+            fileInput.value = '';
+            return;
+        }
+        
+        if (fileSizeInBytes > MAX_FILE_SIZE) {
+            alert(`Image size is too large. Maximum size is 100 MB.\nYour file size: ${(fileSizeInBytes / (1024 * 1024)).toFixed(2)} MB`);
+            fileInput.value = '';
+            return;
+        }
+    }
+});
+
+// Form submission validation
+form.addEventListener('submit', function(e) {
+    const hasImageData = imageDataInput.value.trim() !== '';
+    const hasFile = fileInput.files.length > 0;
+    
+    if (!hasImageData && !hasFile) {
+        e.preventDefault();
+        alert('Please provide a face image using the camera or upload a file.');
+        return false;
+    }
 });
 
 window.addEventListener('load', initCamera);

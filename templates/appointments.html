@@ -13,6 +13,7 @@
             <th>Doctor</th>
             <th>Date</th>
             <th>Status</th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -22,7 +23,23 @@
             <td>{{ appointment.patient.name }}</td>
             <td>{{ appointment.doctor.name }}</td>
             <td>{{ appointment.date.strftime('%Y-%m-%d %H:%M') }}</td>
-            <td>{{ appointment.status }}</td>
+            <td>
+                <span class="badge bg-{% if appointment.status == 'pending' %}warning{% elif appointment.status == 'accepted' %}success{% elif appointment.status == 'rejected' %}danger{% elif appointment.status == 'completed' %}info{% else %}secondary{% endif %}">
+                    {{ appointment.status.title() }}
+                </span>
+            </td>
+            <td>
+                {% if current_user.role == 'doctor' and appointment.doctor_id == current_user.id and appointment.doctor_approval == 'pending' %}
+                    <form action="{{ url_for('accept_appointment', id=appointment.id) }}" method="post" style="display: inline;">
+                        <button type="submit" class="btn btn-success btn-sm">Accept</button>
+                    </form>
+                    <form action="{{ url_for('reject_appointment', id=appointment.id) }}" method="post" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+                    </form>
+                {% else %}
+                    <span class="text-muted">-</span>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>

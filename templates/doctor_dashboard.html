@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Doctor Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container text-center">
+        <img src="{{ url_for('static', filename='govt-seal.png') }}" alt="Government of Karnataka" style="height: 120px; margin-bottom: 1.5rem;">
+        <h1>Doctor Dashboard</h1>
+        <p class="lead">Welcome Dr. {{ doctor.name }} - {{ doctor.specialization }}</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Quick Stats -->
+    <div class="col-md-3 mb-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Total Appointments</h5>
+                <h2 class="text-primary">{{ appointments|length }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Pending Approvals</h5>
+                <h2 class="text-warning">{{ appointments|selectattr('doctor_approval', 'equalto', 'pending')|list|length }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Active Patients</h5>
+                <h2 class="text-success">{{ patients|length }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Unread Messages</h5>
+                <h2 class="text-info">{{ unread_messages }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Appointment History -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">📅 Appointment History</h5>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                {% if appointments %}
+                    <div class="list-group list-group-flush">
+                        {% for appointment in appointments %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ appointment.patient.name }}</h6>
+                                        <small class="text-muted">{{ appointment.date.strftime('%d-%m-%Y %H:%M') }}</small>
+                                        <div class="mt-2">
+                                            <span class="badge bg-{% if appointment.status == 'pending' %}warning{% elif appointment.status == 'accepted' %}success{% elif appointment.status == 'rejected' %}danger{% elif appointment.status == 'completed' %}info{% else %}secondary{% endif %}">
+                                                {{ appointment.status.title() }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        {% if appointment.doctor_approval == 'pending' %}
+                                            <form action="{{ url_for('accept_appointment', id=appointment.id) }}" method="post" style="display: inline;">
+                                                <button type="submit" class="btn btn-success btn-sm">Accept</button>
+                                            </form>
+                                            <form action="{{ url_for('reject_appointment', id=appointment.id) }}" method="post" style="display: inline;">
+                                                <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+                                            </form>
+                                        {% else %}
+                                            <a href="{{ url_for('chat', appointment_id=appointment.id) }}" class="btn btn-info btn-sm">Chat</a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No appointments yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Patient Treatment -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">🏥 Patient Treatment</h5>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <a href="{{ url_for('doctor_patients') }}" class="btn btn-primary mb-3">View All Patients</a>
+                {% if medical_records %}
+                    <div class="list-group list-group-flush">
+                        {% for record in medical_records[:5] %}
+                            <div class="list-group-item">
+                                <h6 class="mb-1">{{ record.patient.name }}</h6>
+                                <small class="text-muted">{{ record.date.strftime('%d-%m-%Y') }}</small>
+                                <p class="mb-1"><strong>Diagnosis:</strong> {{ record.diagnosis[:50] }}{% if record.diagnosis|length > 50 %}...{% endif %}</p>
+                                <p class="mb-0"><strong>Treatment:</strong> {{ record.treatment[:50] }}{% if record.treatment|length > 50 %}...{% endif %}</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% if medical_records|length > 5 %}
+                        <div class="text-center mt-3">
+                            <a href="{{ url_for('doctor_patients') }}" class="btn btn-outline-primary">View All Records</a>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <p class="text-muted text-center">No medical records yet.</p>
+                    <a href="{{ url_for('doctor_patients') }}" class="btn btn-success">Start Treating Patients</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">⚡ Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <a href="{{ url_for('appointments') }}" class="btn btn-outline-primary btn-lg w-100 mb-2">
+                            📅 View All Appointments
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('doctor_patients') }}" class="btn btn-outline-success btn-lg w-100 mb-2">
+                            👥 Manage Patients
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('medical_records') }}" class="btn btn-outline-warning btn-lg w-100 mb-2">
+                            📋 Medical Records
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('bills') }}" class="btn btn-outline-info btn-lg w-100 mb-2">
+                            💰 Billing
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
