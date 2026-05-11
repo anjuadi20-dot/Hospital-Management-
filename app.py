@@ -30,11 +30,11 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///hospital.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size for uploads
 
 # File size limits for doctor photo registration
 MIN_DOCTOR_PHOTO_SIZE = 1024  # 1KB in bytes
-MAX_DOCTOR_PHOTO_SIZE = 100 * 1024 * 1024  # 100MB in bytes
+MAX_DOCTOR_PHOTO_SIZE = 10 * 1024 * 1024  # 10MB max for face images
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -112,10 +112,14 @@ class Message(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+def deny_access():
+    flash('Access denied. You do not have permission to access this page.')
+    return redirect(url_for('dashboard'))
+
 # Routes
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('welcome.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -198,6 +202,8 @@ def dashboard():
     elif current_user.role == 'doctor':
         # Redirect doctors to their specific dashboard
         return redirect(url_for('doctor_dashboard'))
+    elif current_user.role == 'staff':
+        return render_template('dashboard.html')
     
     # Admin dashboard
     return render_template('dashboard.html')
@@ -346,12 +352,16 @@ def add_medical_record_for_patient(patient_id):
 @app.route('/patients')
 @login_required
 def patients():
+    if current_user.role == 'staff':
+        return deny_access()
     patients = Patient.query.all()
     return render_template('patients.html', patients=patients)
 
 @app.route('/add_patient', methods=['GET', 'POST'])
 @login_required
 def add_patient():
+    if current_user.role not in ['admin', 'staff']:
+        return deny_access()
     if request.method == 'POST':
         name = request.form.get('name')
         age = request.form.get('age')
@@ -364,12 +374,16 @@ def add_patient():
         db.session.add(patient)
         db.session.commit()
         flash('Patient added successfully')
+        if current_user.role == 'staff':
+            return redirect(url_for('dashboard'))
         return redirect(url_for('patients'))
     return render_template('add_patient.html')
 
 @app.route('/edit_patient/<int:id>', methods=['GET', 'POST'])
 @login_required
 def edit_patient(id):
+    if current_user.role not in ['admin', 'doctor']:
+        return deny_access()
     patient = Patient.query.get_or_404(id)
     if request.method == 'POST':
         patient.name = request.form.get('name')
@@ -384,10 +398,23 @@ def edit_patient(id):
         return redirect(url_for('patients'))
     return render_template('edit_patient.html', patient=patient)
 
-@app.route('/delete_patient/<int:id>')
+@app.route('/delete_patient/<int:id>', methods=['POST'])
 @login_required
 def delete_patient(id):
+    if current_user.role != 'admin':
+        return deny_access()
     patient = Patient.query.get_or_404(id)
+
+    # Remove dependent bills, appointments, medical records, and messages first
+    for bill in list(patient.bills):
+        db.session.delete(bill)
+    for appointment in list(patient.appointments):
+        for message in list(appointment.messages):
+            db.session.delete(message)
+        db.session.delete(appointment)
+    for record in list(patient.medical_records):
+        db.session.delete(record)
+
     db.session.delete(patient)
     db.session.commit()
     flash('Patient deleted successfully')
@@ -397,12 +424,16 @@ def delete_patient(id):
 @app.route('/doctors')
 @login_required
 def doctors():
+    if current_user.role == 'staff':
+        return deny_access()
     doctors = Doctor.query.all()
     return render_template('doctors.html', doctors=doctors)
 
 @app.route('/add_doctor', methods=['GET', 'POST'])
 @login_required
 def add_doctor():
+    if current_user.role != 'admin':
+        return deny_access()
     if request.method == 'POST':
         name = request.form.get('name')
         specialization = request.form.get('specialization')
@@ -416,6 +447,45 @@ def add_doctor():
         return redirect(url_for('doctors'))
     return render_template('add_doctor.html')
 
+@app.route('/edit_doctor/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_doctor(id):
+    if current_user.role != 'admin':
+        return deny_access()
+    doctor = Doctor.query.get_or_404(id)
+    if request.method == 'POST':
+        doctor.name = request.form.get('name')
+        doctor.specialization = request.form.get('specialization')
+        doctor.phone = request.form.get('phone')
+        doctor.email = request.form.get('email')
+        doctor.availability = request.form.get('availability')
+        db.session.commit()
+        flash('Doctor updated successfully')
+        return redirect(url_for('doctors'))
+    return render_template('edit_doctor.html', doctor=doctor)
+
+@app.route('/delete_doctor/<int:id>', methods=['POST'])
+@login_required
+def delete_doctor(id):
+    if current_user.role != 'admin':
+        return deny_access()
+    doctor = Doctor.query.get_or_404(id)
+
+    # Delete dependent appointments and related messages first
+    for appointment in list(doctor.appointments):
+        for message in list(appointment.messages):
+            db.session.delete(message)
+        db.session.delete(appointment)
+
+    # Delete dependent medical records
+    for record in list(doctor.medical_records):
+        db.session.delete(record)
+
+    db.session.delete(doctor)
+    db.session.commit()
+    flash('Doctor deleted successfully')
+    return redirect(url_for('doctors'))
+
 @app.route('/register_face/<int:id>', methods=['GET', 'POST'])
 @login_required
 def register_face(id):
@@ -424,45 +494,55 @@ def register_face(id):
         return redirect(url_for('doctors'))
     doctor = Doctor.query.get_or_404(id)
     if request.method == 'POST':
-        image_data = request.form.get('image_data')
+        image_data = request.form.get('image_data', '').strip()
         file = request.files.get('face_image')
         image = None
-        if image_data:
+        
+        # Try to process uploaded file first if present and valid
+        if file and file.filename:
             try:
-                header, encoded = image_data.split(',', 1)
-                file_bytes = base64.b64decode(encoded)
-                image = Image.open(BytesIO(file_bytes))
-            except Exception:
-                image = None
-        elif file:
-            # Validate file size for uploaded image
-            file.seek(0, 2)  # Seek to end of file
-            file_size = file.tell()
-            file.seek(0)  # Reset to beginning
-            
-            if file_size < MIN_DOCTOR_PHOTO_SIZE:
-                flash(f'Image size is too small. Minimum size is 1KB.')
-                return render_template('register_face.html', doctor=doctor)
-            elif file_size > MAX_DOCTOR_PHOTO_SIZE:
-                flash(f'Image size is too large. Maximum size is 100MB.')
-                return render_template('register_face.html', doctor=doctor)
-            
-            try:
+                file.seek(0, 2)
+                file_size = file.tell()
+                file.seek(0)
+                
+                if file_size < MIN_DOCTOR_PHOTO_SIZE:
+                    flash('Image size is too small. Minimum size is 1KB.')
+                    return render_template('register_face.html', doctor=doctor)
+                elif file_size > MAX_DOCTOR_PHOTO_SIZE:
+                    flash('Image size is too large. Maximum size is 100MB.')
+                    return render_template('register_face.html', doctor=doctor)
+                
                 image = Image.open(file.stream)
-            except Exception:
+            except Exception as e:
                 flash('Invalid image file. Please upload a valid image.')
                 return render_template('register_face.html', doctor=doctor)
-
+        # Otherwise try camera capture data
+        elif image_data:
+            try:
+                if ',' in image_data:
+                    header, encoded = image_data.split(',', 1)
+                else:
+                    encoded = image_data
+                file_bytes = base64.b64decode(encoded)
+                image = Image.open(BytesIO(file_bytes))
+            except Exception as e:
+                flash('Invalid image data from camera. Please try again.')
+                return render_template('register_face.html', doctor=doctor)
+        
         if image is not None:
-            image = np.array(image)
-            face_locations = face_recognition.face_locations(image)
-            if face_locations:
-                face_encoding = face_recognition.face_encodings(image, face_locations)[0]
-                doctor.face_encoding = face_encoding
-                db.session.commit()
-                flash('Face registered successfully')
-                return redirect(url_for('doctors'))
-            flash('No face detected in the image')
+            try:
+                image = np.array(image)
+                face_locations = face_recognition.face_locations(image)
+                if face_locations:
+                    face_encoding = face_recognition.face_encodings(image, face_locations)[0]
+                    doctor.face_encoding = face_encoding
+                    db.session.commit()
+                    flash('Face registered successfully')
+                    return redirect(url_for('doctors'))
+                else:
+                    flash('No face detected in the image. Please try with a clearer photo.')
+            except Exception as e:
+                flash('Error processing face image. Please try again.')
         else:
             flash('Please provide a face image using the camera or upload a file')
     return render_template('register_face.html', doctor=doctor)
@@ -500,6 +580,20 @@ def face_login():
                             user = User(username=doctor.email, password=generate_password_hash('face'), role='doctor')
                             db.session.add(user)
                             db.session.commit()
+                            
+                            # Ensure doctor profile exists (safety check, though it should already exist)
+                            existing_doctor = Doctor.query.filter_by(email=user.username).first()
+                            if not existing_doctor:
+                                doctor_profile = Doctor(
+                                    name=user.username.split('@')[0].replace('.', ' ').title(),
+                                    specialization='General Medicine',
+                                    phone='Not provided',
+                                    email=user.username,
+                                    availability='Please update availability'
+                                )
+                                db.session.add(doctor_profile)
+                                db.session.commit()
+                        
                         login_user(user)
                         flash('Face login successful')
                         return redirect(url_for('dashboard'))
@@ -514,6 +608,8 @@ def face_login():
 @app.route('/appointments')
 @login_required
 def appointments():
+    if current_user.role == 'staff':
+        return deny_access()
     appointments = Appointment.query.all()
     return render_template('appointments.html', appointments=appointments)
 
@@ -521,33 +617,37 @@ def appointments():
 @login_required
 def accept_appointment(id):
     appointment = Appointment.query.get_or_404(id)
-    # Check if current user is the assigned doctor
-    if current_user.role == 'doctor' and appointment.doctor_id == current_user.id:
-        appointment.doctor_approval = 'accepted'
-        appointment.status = 'accepted'
-        db.session.commit()
-        flash('Appointment accepted successfully')
-    else:
-        flash('You are not authorized to accept this appointment')
+    if current_user.role == 'doctor':
+        doctor = Doctor.query.filter_by(email=current_user.username).first()
+        if doctor and appointment.doctor_id == doctor.id:
+            appointment.doctor_approval = 'accepted'
+            appointment.status = 'accepted'
+            db.session.commit()
+            flash('Appointment accepted successfully')
+            return redirect(url_for('appointments'))
+    flash('You are not authorized to accept this appointment')
     return redirect(url_for('appointments'))
 
 @app.route('/appointment/<int:id>/reject', methods=['POST'])
 @login_required
 def reject_appointment(id):
     appointment = Appointment.query.get_or_404(id)
-    # Check if current user is the assigned doctor
-    if current_user.role == 'doctor' and appointment.doctor_id == current_user.id:
-        appointment.doctor_approval = 'rejected'
-        appointment.status = 'rejected'
-        db.session.commit()
-        flash('Appointment rejected')
-    else:
-        flash('You are not authorized to reject this appointment')
+    if current_user.role == 'doctor':
+        doctor = Doctor.query.filter_by(email=current_user.username).first()
+        if doctor and appointment.doctor_id == doctor.id:
+            appointment.doctor_approval = 'rejected'
+            appointment.status = 'rejected'
+            db.session.commit()
+            flash('Appointment rejected')
+            return redirect(url_for('appointments'))
+    flash('You are not authorized to reject this appointment')
     return redirect(url_for('appointments'))
 
 @app.route('/add_appointment', methods=['GET', 'POST'])
 @login_required
 def add_appointment():
+    if current_user.role not in ['admin', 'doctor', 'patient']:
+        return deny_access()
     patients = Patient.query.all()
     doctors = Doctor.query.all()
     if request.method == 'POST':
@@ -566,12 +666,16 @@ def add_appointment():
 @app.route('/medical_records')
 @login_required
 def medical_records():
+    if current_user.role not in ['admin', 'doctor']:
+        return deny_access()
     records = MedicalRecord.query.all()
     return render_template('medical_records.html', records=records)
 
 @app.route('/add_medical_record', methods=['GET', 'POST'])
 @login_required
 def add_medical_record():
+    if current_user.role not in ['admin', 'doctor']:
+        return deny_access()
     patients = Patient.query.all()
     doctors = Doctor.query.all()
     if request.method == 'POST':
@@ -590,12 +694,16 @@ def add_medical_record():
 @app.route('/bills')
 @login_required
 def bills():
+    if current_user.role == 'staff':
+        return deny_access()
     bills = Bill.query.all()
     return render_template('bills.html', bills=bills)
 
 @app.route('/add_bill', methods=['GET', 'POST'])
 @login_required
 def add_bill():
+    if current_user.role not in ['admin', 'staff', 'doctor']:
+        return deny_access()
     patients = Patient.query.all()
     if request.method == 'POST':
         patient_id = request.form.get('patient_id')
@@ -605,6 +713,8 @@ def add_bill():
         db.session.add(bill)
         db.session.commit()
         flash('Bill created successfully')
+        if current_user.role == 'staff':
+            return redirect(url_for('dashboard'))
         return redirect(url_for('bills'))
     return render_template('add_bill.html', patients=patients)
 

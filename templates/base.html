@@ -78,21 +78,31 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('patients') }}">Patients</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('doctors') }}">Doctors</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('appointments') }}">Appointments</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('medical_records') }}">Medical Records</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('bills') }}">Bills</a>
-                        </li>
+                        {% if current_user.role in ['admin', 'doctor'] %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('patients') }}">Patients</a>
+                            </li>
+                        {% endif %}
+                        {% if current_user.role in ['admin', 'doctor', 'patient'] %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('doctors') }}">Doctors</a>
+                            </li>
+                        {% endif %}
+                        {% if current_user.role in ['admin', 'doctor', 'patient'] %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('appointments') }}">Appointments</a>
+                            </li>
+                        {% endif %}
+                        {% if current_user.role in ['admin', 'doctor'] %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('medical_records') }}">Medical Records</a>
+                            </li>
+                        {% endif %}
+                        {% if current_user.role in ['admin', 'doctor', 'patient'] %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('bills') }}">Bills</a>
+                            </li>
+                        {% endif %}
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">

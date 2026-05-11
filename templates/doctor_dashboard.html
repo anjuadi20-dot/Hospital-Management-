@@ -7,7 +7,7 @@
     <div class="container text-center">
         <img src="{{ url_for('static', filename='govt-seal.png') }}" alt="Government of Karnataka" style="height: 120px; margin-bottom: 1.5rem;">
         <h1>Doctor Dashboard</h1>
-        <p class="lead">Welcome Dr. {{ doctor.name }} - {{ doctor.specialization }}</p>
+        <p class="lead">Hello Sir, Dr. {{ doctor.name }} - {{ doctor.specialization }}</p>
     </div>
 </div>
 
@@ -134,19 +134,24 @@
             </div>
             <div class="card-body">
                 <div class="row text-center">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <a href="{{ url_for('appointments') }}" class="btn btn-outline-primary btn-lg w-100 mb-2">
                             📅 View All Appointments
+                        </a>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{{ url_for('add_appointment') }}" class="btn btn-outline-secondary btn-lg w-100 mb-2">
+                            ➕ Add Appointment
+                        </a>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{{ url_for('doctors') }}" class="btn btn-outline-success btn-lg w-100 mb-2">
+                            👨‍⚕️ Doctors List
                         </a>
                     </div>
                     <div class="col-md-3">
                         <a href="{{ url_for('doctor_patients') }}" class="btn btn-outline-success btn-lg w-100 mb-2">
                             👥 Manage Patients
-                        </a>
-                    </div>
-                    <div class="col-md-3">
-                        <a href="{{ url_for('medical_records') }}" class="btn btn-outline-warning btn-lg w-100 mb-2">
-                            📋 Medical Records
                         </a>
                     </div>
                     <div class="col-md-3">

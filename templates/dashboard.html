@@ -7,8 +7,14 @@
     <div class="container text-center">
         <img src="{{ url_for('static', filename='govt-seal.png') }}" alt="Government of Karnataka" style="height: 120px; margin-bottom: 1.5rem;">
         <h1>Dashboard</h1>
-        {% if current_user.is_authenticated and current_user.role == 'patient' %}
-            <p class="lead">Welcome back, {{ patient.name if patient else 'Patient' }}</p>
+        {% if current_user.is_authenticated and current_user.role == 'admin' %}
+            <p class="lead">Hello Sir, {{ current_user.username }}</p>
+        {% elif current_user.is_authenticated and current_user.role == 'doctor' %}
+            <p class="lead">Hello Sir, {{ current_user.username }}</p>
+        {% elif current_user.is_authenticated and current_user.role == 'staff' %}
+            <p class="lead">Hello, {{ current_user.username }}</p>
+        {% elif current_user.is_authenticated and current_user.role == 'patient' %}
+            <p class="lead">Hello, {{ patient.name if patient else current_user.username }}</p>
         {% else %}
             <p class="lead">Welcome to Government Hospital, Shikaripura administrative panel.</p>
         {% endif %}
@@ -166,53 +172,101 @@
         }
     </style>
 
-{% else %}
-    <!-- Admin/Doctor Dashboard -->
+{% elif current_user.is_authenticated and current_user.role == 'staff' %}
     <div class="row">
-        <div class="col-md-3">
-            <div class="card">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">👥 Add New Patient</h5>
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title">Patients</h5>
-                    <p class="card-text">Manage patient records</p>
-                    <a href="{{ url_for('patients') }}" class="btn btn-primary">View Patients</a>
+                    <p class="card-text">Add patient details to support hospital operations.</p>
+                    <a href="{{ url_for('add_patient') }}" class="btn btn-primary btn-lg w-100">Add Patient</a>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Doctors</h5>
-                    <p class="card-text">Manage doctor profiles</p>
-                    <a href="{{ url_for('doctors') }}" class="btn btn-primary">View Doctors</a>
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="card-title mb-0">💰 Create Billing</h5>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Appointments</h5>
-                    <p class="card-text">Schedule and manage appointments</p>
-                    <a href="{{ url_for('appointments') }}" class="btn btn-primary">View Appointments</a>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Medical Records</h5>
-                    <p class="card-text">View and add medical records</p>
-                    <a href="{{ url_for('medical_records') }}" class="btn btn-primary">View Records</a>
+                    <p class="card-text">Generate new bills for patients from the staff dashboard.</p>
+                    <a href="{{ url_for('add_bill') }}" class="btn btn-warning btn-lg w-100">Create Bill</a>
                 </div>
             </div>
         </div>
     </div>
-    <div class="row mt-4">
-        <div class="col-md-6">
+    <div class="row">
+        <div class="col-12">
             <div class="card">
+                <div class="card-body text-center">
+                    <p class="mb-0">Staff accounts are limited to adding patients and creating bills. Other administrative actions are restricted.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <!-- Admin Dashboard -->
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
                 <div class="card-body">
-                    <h5 class="card-title">Bills</h5>
-                    <p class="card-text">Manage billing and payments</p>
-                    <a href="{{ url_for('bills') }}" class="btn btn-primary">View Bills</a>
+                    <h5 class="card-title">Patients</h5>
+                    <p class="card-text">Full patient management with add, edit, and delete access.</p>
+                    <a href="{{ url_for('patients') }}" class="btn btn-primary mb-2 w-100">Manage Patients</a>
+                    <a href="{{ url_for('add_patient') }}" class="btn btn-outline-primary w-100">Add Patient</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Doctors</h5>
+                    <p class="card-text">Manage doctors and their profiles, including add/edit access.</p>
+                    <a href="{{ url_for('doctors') }}" class="btn btn-primary mb-2 w-100">Manage Doctors</a>
+                    <a href="{{ url_for('add_doctor') }}" class="btn btn-outline-primary w-100">Add Doctor</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Appointments</h5>
+                    <p class="card-text">View, schedule, and manage appointments across the hospital.</p>
+                    <a href="{{ url_for('appointments') }}" class="btn btn-primary mb-2 w-100">Manage Appointments</a>
+                    <a href="{{ url_for('add_appointment') }}" class="btn btn-outline-primary w-100">Schedule Appointment</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Medical Records</h5>
+                    <p class="card-text">Add and review patient medical records with full access.</p>
+                    <a href="{{ url_for('medical_records') }}" class="btn btn-primary mb-2 w-100">Manage Records</a>
+                    <a href="{{ url_for('add_medical_record') }}" class="btn btn-outline-primary w-100">Add Record</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Billing</h5>
+                    <p class="card-text">Create and manage bills for hospital services.</p>
+                    <a href="{{ url_for('bills') }}" class="btn btn-primary mb-2 w-100">Manage Bills</a>
+                    <a href="{{ url_for('add_bill') }}" class="btn btn-outline-primary w-100">Create Bill</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">User Management</h5>
+                    <p class="card-text">Admin can register staff, doctor, patient, and manage all system roles.</p>
+                    <a href="{{ url_for('register') }}" class="btn btn-primary w-100">Register New User</a>
                 </div>
             </div>
         </div>
